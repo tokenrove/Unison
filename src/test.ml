@@ -330,6 +330,13 @@ let test() =
      running fast enough that the whole thing happens within a second, then the
      update will be missed! *)
 
+  if not (Prefs.read Globals.someHostIsRunningWindows) then
+    (* Test that Unix domain sockets are ignored. *)
+    runtest "Unix domain socket files" [] (fun() ->
+      put R1 (Dir ["a", UnixSocket]); sync();
+      checkmissing "1" R2
+    );
+
   (* Check for the bug reported by Ralf Lehmann *)
   if not bothRootsLocal then 
     runtest "backups 1 (remote)" ["backup = Name *"] (fun() -> 
