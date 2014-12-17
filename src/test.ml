@@ -102,12 +102,14 @@ let extend p file = Fspath.concat p (Path.fromString file)
 type fs =
   | File of string
   | Link of string
+  | UnixSocket
   | Dir of (string * fs) list
 
 let rec equal fs1 fs2 =
   match fs1,fs2 with
     | File s1, File s2 -> s1=s2
     | Link s1, Link s2 -> s1=s2
+    | UnixSocket, UnixSocket -> true
     | Dir d1, Dir d2 ->
         let dom d = Safelist.sort String.compare (Safelist.map fst d) in
            (dom d1 = dom d2)
@@ -120,6 +122,7 @@ let rec equal fs1 fs2 =
 let rec fs2string = function
   | File s -> "File \"" ^ s ^ "\""
   | Link s -> "Link \"" ^ s ^ "\""
+  | UnixSocket -> "UnixSocket"
   | Dir s -> "Dir [" ^ (String.concat "; "
                           (Safelist.map (fun (n,fs') -> "(\""^n^"\", "^(fs2string fs')^")") s)) ^ "]"
 
@@ -133,6 +136,7 @@ let readfs p =
     match s.Unix.LargeFile.st_kind with
       | Unix.S_REG -> File (read p)
       | Unix.S_LNK -> Link (Fs.readlink p)
+      | Unix.S_SOCK -> UnixSocket
       | Unix.S_DIR -> Dir (Safelist.map (fun x -> (x, loop (extend p x))) (read_dir p))
       | _ -> assert false
   in try Some(loop p) with
@@ -148,6 +152,10 @@ let writefs p fs =
                    (Fspath.toDebugString p) s (Fingerprint.toString (Fingerprint.string s)));
         write p s
     | Link s -> Fs.symlink s p
+    | UnixSocket ->
+        let fd = Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0 in
+        Unix.bind fd (Unix.ADDR_UNIX (Fspath.toString p));
+        Unix.close fd
     | Dir files ->
         Fs.mkdir p default_perm;
         Safelist.iter (fun (x,cont) -> loop (extend p x) cont) files
