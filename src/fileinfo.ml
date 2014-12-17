@@ -79,6 +79,7 @@ let get fromRoot fspath path =
            match stats.Unix.LargeFile.st_kind with
              Unix.S_REG -> `FILE
            | Unix.S_DIR -> `DIRECTORY
+           | Unix.S_SOCK -> `ABSENT
            | Unix.S_LNK ->
                if not fromRoot || Prefs.read symlinksAllowed then
                  `SYMLINK
